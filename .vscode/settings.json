@@ -1,0 +1,8 @@
+{
+    "python.formatting.provider": "black",
+    "python.testing.pytestArgs": [
+        "neural-networks-and-deep-learning"
+    ],
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true
+}
