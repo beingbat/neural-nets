@@ -8,3 +8,4 @@ loc.py
 src/ec2
 fig/
 __pycache__
+book/
