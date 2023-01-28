@@ -1,17 +1,22 @@
 import numpy as np
 
 class NeuralNetwork():
-    def __init__(self, network_shape, loss_fn="quadratic"):
+    def __init__(self, network_shape, lr=0.01, loss_fn="quadratic"):
         self.weights = [self.weights_initialization("u")(network_shape[i], network_shape[i+1]) for i in range(len(network_shape)-1)]
         self.biases = [self.weights_initialization("u")(1, network_shape[i+1]) for i in range(len(network_shape)-1)]
         
         self.loss, self.loss_d = self.get_loss(loss_fn)
-        
-        self.act_prime = [np.zeros((1, network_shape[i+1])) for i in range(len(network_shape)-1)]
-        self.acts = [np.zeros(network_shape[i]) for i in range(len(network_shape))]
-        self.costs_d = np.zeros(network_shape[-1])
+        self.network_shape = network_shape
+        # self.act_prime = [np.zeros((1, network_shape[i+1])) for i in range(len(network_shape)-1)]
+        # self.acts = [np.zeros(network_shape[i]) for i in range(len(network_shape))]
+        # self.costs_d = np.zeros(network_shape[-1])
+        self.reset_gradients()
+        self.LR = lr
 
-        self.LR = 0.01
+    def reset_gradients(self):
+        self.act_prime = [np.zeros((1, self.network_shape[i+1])) for i in range(len(self.network_shape)-1)]
+        self.acts = [np.zeros(self.network_shape[i]) for i in range(len(self.network_shape))]
+        self.costs_d = np.zeros(self.network_shape[-1])
     
     def get_loss(self, loss):
         if loss == "quadratic":
@@ -27,12 +32,12 @@ class NeuralNetwork():
 
     def weights_initialization(self, char):
         if char == "u":
-            return np.random.rand
+            return np.random.randn
         else:
-            return np.random.rand
+            return np.random.randn
     
     def sigmoid(self, x):
-        return 1/(1+np.exp(-x))
+        return 1/(1+np.exp(-x, dtype=np.float64))
 
     def sigmoid_prime(self, x):
         return self.sigmoid(x)*(1-self.sigmoid(x))
@@ -76,6 +81,4 @@ class NeuralNetwork():
             self.weights[i] -= self.LR*np.dot(self.acts[i].reshape(-1,1),chain_grad)
             chain_grad = np.dot(chain_grad, np.transpose(old_weights, (1,0)))
 
-n = NeuralNetwork((786,30,20,10))
-pred, loss = n.forward(np.random.rand(786), np.random.rand(10))
-n.backward()
+        self.reset_gradients()
