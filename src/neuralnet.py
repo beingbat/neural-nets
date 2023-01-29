@@ -14,6 +14,7 @@ class NeuralNetwork():
         self.LR = lr
 
     def reset_gradients(self):
+        self.iterations = 0
         self.act_prime = [np.zeros((1, self.network_shape[i+1])) for i in range(len(self.network_shape)-1)]
         self.acts = [np.zeros(self.network_shape[i]) for i in range(len(self.network_shape))]
         self.costs_d = np.zeros(self.network_shape[-1])
@@ -41,19 +42,26 @@ class NeuralNetwork():
 
     def sigmoid_prime(self, x):
         return self.sigmoid(x)*(1-self.sigmoid(x))
+    
+    def combine_grads(self, grads, new_grad):
+        return ((self.iterations-1)/self.iterations)*grads + (1/self.iterations)*new_grad 
 
     def forward(self, x, y):
-        self.acts[0]+=x
+        self.iterations += 1
+        # self.acts[0] += x
+        self.acts[0] = self.combine_grads(self.acts[0], x)
         x = np.array(x).reshape(1, -1)
         for i in range(len(self.weights)): 
             # Z = X*W + b
             x = np.dot(x,self.weights[i])+self.biases[i]
             # dA/dZ
-            self.act_prime[i] += self.sigmoid_prime(np.squeeze(x.copy()))
+            # self.act_prime[i] += self.sigmoid_prime(np.squeeze(x.copy()))
+            self.act_prime[i] = self.combine_grads(self.act_prime[i], self.sigmoid_prime(np.squeeze(x.copy())))
             # A = act(Z)
             x = self.sigmoid(np.squeeze(x))
             # dZ(n+1)/A(n-1)
-            self.acts[i+1] += x.copy()
+            # self.acts[i+1] += x.copy()
+            self.acts[i+1] = self.combine_grads(self.acts[i+1], x.copy())
             # X = A
         self.costs_d += self.loss_d(x,y)
         return x, self.loss(x,y)
