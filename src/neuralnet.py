@@ -7,9 +7,6 @@ class NeuralNetwork():
         
         self.loss, self.loss_d = self.get_loss(loss_fn)
         self.network_shape = network_shape
-        # self.act_prime = [np.zeros((1, network_shape[i+1])) for i in range(len(network_shape)-1)]
-        # self.acts = [np.zeros(network_shape[i]) for i in range(len(network_shape))]
-        # self.costs_d = np.zeros(network_shape[-1])
         self.reset_gradients()
         self.LR = lr
 
@@ -19,7 +16,9 @@ class NeuralNetwork():
         self.costs_d = np.zeros(self.network_shape[-1])
     
     def get_loss(self, loss):
-        if loss == "quadratic":
+        if loss == "BCE":
+            return self.cross_entropy_loss, self.cross_entropy_loss_d
+        elif loss == "MSE":
             return self.quadratic_loss, self.quadratic_loss_d
         else:
             return self.quadratic_loss, self.quadratic_loss_d
@@ -30,6 +29,16 @@ class NeuralNetwork():
     def quadratic_loss_d(self, a,y):
         return a-y
 
+    def cross_entropy_loss(self, a, y): 
+        return -np.sum(y*np.log2(a+1e-8), axis=0)
+
+    def cross_entropy_loss_d(self, a, y): # Gives same derivative as MSE and also cancels out last layer's activation derivative as well
+        grad = -(y/(a+1e-8))+((1-y)/(1-a+1e-8))
+        # print("\n", y, "\n", [np.round(i, 2) for i in a], "\n", grad, "\n")
+        # print("a-y: ", a-y)
+        return grad
+
+
     def weights_initialization(self, char):
         if char == "u":
             return np.random.randn
@@ -37,7 +46,7 @@ class NeuralNetwork():
             return np.random.randn
     
     def sigmoid(self, x):
-        return 1/(1+np.exp(-x, dtype=np.float64))
+        return 1/(1+np.exp(-np.float64(x)))
 
     def sigmoid_prime(self, x):
         return self.sigmoid(x)*(1-self.sigmoid(x))
@@ -48,22 +57,27 @@ class NeuralNetwork():
         return ((self.iterations-1)/self.iterations)*grads + (1/self.iterations)*new_grad 
 
     def forward(self, x, y):
-        # self.acts[0] += x
         self.acts[0] = np.mean(x, axis=0)
-        # x = np.array(x).reshape(1, -1)
         for i in range(len(self.weights)): 
             # Z = X*W + b
             x = np.dot(x,self.weights[i])+self.biases[i]
             # dA/dZ
-            # self.act_prime[i] += self.sigmoid_prime(np.squeeze(x.copy()))
-            self.act_prime[i] = np.mean(self.sigmoid_prime(np.squeeze(x.copy())), axis=0)
+            temp = self.sigmoid_prime(np.squeeze(x.copy()))
+            if len(temp.shape) > 1:
+                temp = np.mean(temp, axis=0)
+            self.act_prime[i] = temp
             # A = act(Z)
             x = self.sigmoid(np.squeeze(x))
             # dZ(n+1)/A(n-1)
-            # self.acts[i+1] += x.copy()
-            self.acts[i+1] = np.mean(x.copy(), axis=0)
+            temp = x.copy()
+            if len(temp.shape) > 1:
+                temp = np.mean(temp, axis=0)
+            self.acts[i+1] = temp
             # X = A
-        self.costs_d = np.mean(self.loss_d(x,y), axis=0)
+        temp = self.loss_d(x,y)
+        if(len(temp.shape) > 1):
+            temp = np.mean(temp, axis=0)
+        self.costs_d = temp
         return x, self.loss(x,y)
 
     # Gradients for: Hidden Layers Count 2
@@ -83,6 +97,7 @@ class NeuralNetwork():
 
     def backward(self):
         chain_grad = self.costs_d.reshape(1,-1)
+        # print("dC/dz: ", chain_grad*self.act_prime[-1])
         for i in range(len(self.weights)-1, -1, -1):
             chain_grad *= self.act_prime[i]
             old_weights = self.weights[i].copy()

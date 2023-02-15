@@ -39,7 +39,7 @@ def train(net, train_data, epochs=1, batch_size=1):
                 {
                     "Batch: ": f'{j:06d}',
                     "Loss: ": f'{np.mean(loss):06f}',
-                    "P/A: ": str(np.argmax(pred, axis=1)) + "/" + str(np.argmax(y, axis=1)),
+                    "P/A: ": str(np.argmax(pred, axis=-1)) + "/" + str(np.argmax(y, axis=-1)),
                 }
             )
     
