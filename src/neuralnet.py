@@ -33,7 +33,7 @@ class NeuralNetwork():
         return -np.sum(y*np.log2(a+1e-8), axis=0)
 
     def cross_entropy_loss_d(self, a, y): # Gives same derivative as MSE and also cancels out last layer's activation derivative as well
-        grad = -(y/(a+1e-8))+((1-y)/(1-a+1e-8))
+        grad = -(y/(a+1e-2))+((1-y)/(1-a+1e-2))
         # print("\n", y, "\n", [np.round(i, 2) for i in a], "\n", grad, "\n")
         # print("a-y: ", a-y)
         return grad
