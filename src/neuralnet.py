@@ -17,7 +17,7 @@ class NeuralNetwork():
     
     def get_loss(self, loss):
         if loss == "BCE":
-            return self.cross_entropy_loss, self.cross_entropy_loss_d
+            return self.binary_cross_entropy_loss, self.binary_cross_entropy_loss_d
         elif loss == "MSE":
             return self.quadratic_loss, self.quadratic_loss_d
         else:
@@ -29,10 +29,12 @@ class NeuralNetwork():
     def quadratic_loss_d(self, a,y):
         return a-y
 
-    def cross_entropy_loss(self, a, y): 
-        return -np.sum(y*np.log2(a+1e-8), axis=0)
+    def binary_cross_entropy_loss(self, a, y): 
+        return -np.sum(y*np.log2(a+1e-8)+(1-y)*np.log2(1-a+1e-8), axis=0)
 
-    def cross_entropy_loss_d(self, a, y): # Gives same derivative as MSE and also cancels out last layer's activation derivative as well
+    # Gives same derivative as MSE and also cancels out last layer's activation derivative as well, speeds up learning but may lead to exploding gradients
+    # It is binary because it deals each output neuron seperately, which is suitable when outputs are not mutually exclusive. In MNIST problem, the right way to treat outputs is together because they are mutually exclusive hence softmax (general sigmoid) activation should be used in final layer
+    def binary_cross_entropy_loss_d(self, a, y): 
         grad = -(y/(a+1e-2))+((1-y)/(1-a+1e-2))
         # print("\n", y, "\n", [np.round(i, 2) for i in a], "\n", grad, "\n")
         # print("a-y: ", a-y)
