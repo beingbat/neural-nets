@@ -19,11 +19,9 @@ class NeuralNetwork:
         self.reset_gradients()
         self.LR = lr
 
-        # self.final_layer_act(final_layer_act)
-        # self.current_act = self.intermediate_act
-        # self.current_act_prime = self.intermediate_act_prime
-        self.current_act = self.sigmoid
-        self.current_act_prime = self.sigmoid_prime
+        self.final_layer_act(final_layer_act)
+        self.current_act = self.intermediate_act
+        self.current_act_prime = self.intermediate_act_prime
 
     # WEIGHTS AND GRADIENTS
 
@@ -49,8 +47,8 @@ class NeuralNetwork:
     def get_loss(self, loss):
         if loss == "BCE":
             return self.binary_cross_entropy_loss, self.binary_cross_entropy_loss_d
-        elif loss == "MSE":
-            return self.quadratic_loss, self.quadratic_loss_d
+        elif loss == "CE":
+            return self.cross_entropy_loss, self.cross_entropy_loss_d
         else:
             return self.quadratic_loss, self.quadratic_loss_d
 
@@ -74,23 +72,24 @@ class NeuralNetwork:
         return grad
 
     # CE Loss
-    # def cross_entropy_loss(self, a, y):
-    #     return None
+    def cross_entropy_loss(self, a, y):
+        return -np.sum(y * np.log2(a), axis=0)
     
-    # def cross_entropy_loss_d(self, a, y):
-    #     return None
+    def cross_entropy_loss_d(self, a, y):
+        return -(y / (a + 1e-2))
 
     # ACTIVATIONS
 
-    # def final_layer_act(self, name):
-    #     self.intermediate_act = self.sigmoid
-    #     self.intermediate_act_prime = self.sigmoid_prime
-    #     if name == "softmax":
-    #         self.final_act = self.softmax
-    #         self.final_act_prime = self.softmax_prime
-    #     else:
-    #         self.final_act = self.sigmoid
-    #         self.final_act_prime = self.sigmoid_prime
+    def final_layer_act(self, name):
+        self.intermediate_act = self.sigmoid
+        self.intermediate_act_prime = self.sigmoid_prime
+        if name == "softmax":
+            self.final_act = self.softmax
+            self.final_act_prime = self.softmax_prime
+            self.final_act_prime_val = []
+        else:
+            self.final_act = self.sigmoid
+            self.final_act_prime = self.sigmoid_prime
 
     def sigmoid(self, x):
         return 1 / (1 + np.exp(-np.float64(x)))
@@ -98,52 +97,44 @@ class NeuralNetwork:
     def sigmoid_prime(self, x):
         return self.sigmoid(x) * (1 - self.sigmoid(x))
     
-    # def softmax(self, x):
-    #     exps = np.exp(x)
-    #     if len(x.shape) == 1:
-    #         return np.array([i/np.sum(exps) for i in exps])
-    #     elif len(x.shape)==2:
-    #         e_arr = []
-    #         for i in exps:
-    #             e_arr += [j/np.sum(j) for j in i]
-    #         return np.array(e_arr)
-    #     raise f"Higher Dimensions are not supported for softmax: {x.shape}"
+    def softmax(self, x):
+        exps = np.exp(x)
+        if len(x.shape) == 1:
+            return np.array([i/np.sum(exps) for i in exps])
+      
+        raise f"Higher Dimensions are not supported for softmax: {x.shape}"
 
-    # def softmax_prime(self, x):
+    def softmax_prime(self, x):
 
-    #     if len(x.shape) == 1:
-    #         return np.array(self.softmax_prime_helper(x))
+        if len(x.shape) == 1:
+            self.final_act_prime_val = np.array(self.softmax_prime_helper(x))
+            return self.final_act_prime_val
 
-    #     elif len(x.shape)==2:
-    #         e_arr = []
-    #         for single_x in x:
-    #             e_arr += self.softmax_prime_helper(single_x)
-    #         return np.array(e_arr)
-    #     raise f"Higher Dimensions are not supported for softmax: {x.shape}"
+        raise f"Higher Dimensions are not supported for softmax: {x.shape}"
     
-    # def softmax_prime_helper(self, x):
-    #     arr= []
-    #     sfts = self.softmax(x)
-    #     for i in range(len(x)):
-    #             grad = 0
-    #             for j in range(len(x)):
-    #                 if i==j:
-    #                     grad += sfts[i]+(1-sfts[i])
-    #                 else:
-    #                     grad += -sfts[i]*sfts[j]
-    #             arr.append(sfts)
-    #     return arr
+    def softmax_prime_helper(self, x):
+        arr= []
+        sfts = self.softmax(x)
+        for j in range(len(x)):
+                grad = []
+                for i in range(len(x)):
+                    if i==j:
+                        grad.append(sfts[i]*(1-sfts[i]))
+                    else:
+                        grad.append(-sfts[i]*sfts[j])
+                arr.append(grad)
+        return arr
 
     # NETWORK PASSES
 
     def forward(self, x, y):
-        # self.current_act = self.intermediate_act
-        # self.current_act_prime = self.intermediate_act_prime
+        self.current_act = self.intermediate_act
+        self.current_act_prime = self.intermediate_act_prime
         self.acts[0] = np.mean(x, axis=0)
         for i in range(len(self.weights)):
-            # if i + 1 == len(self.weights):
-            #     self.current_act = self.final_act
-            #     self.current_act_prime = self.final_act_prime
+            if i + 1 == len(self.weights):
+                self.current_act = self.final_act
+                self.current_act_prime = self.final_act_prime
 
             # Z = X*W + b
             x = np.dot(x, self.weights[i]) + self.biases[i]
@@ -181,11 +172,22 @@ class NeuralNetwork:
     # dZn/dWn = X_(n-1)
     # These two can be calculated during the forward pass, as the activation function and its derivative are known and as well as input
 
+    def resolve_cost_for_softmax(self, costd):
+        self.act_prime[-1] = self.final_act_prime_val
+        prime = self.act_prime[-1]
+        for i in range(len(costd[0])):
+            prime[:,i]*=costd[0, i]
+        return np.sum(prime, axis=-1).reshape(1,-1)
+        
+
     def backward(self):
         chain_grad = self.costs_d.reshape(1, -1)
         # print("dC/dz: ", chain_grad*self.act_prime[-1])
         for i in range(len(self.weights) - 1, -1, -1):
-            chain_grad *= self.act_prime[i]
+            if i==len(self.weights) - 1 and self.final_act.__eq__(self.softmax):
+                chain_grad = self.resolve_cost_for_softmax(chain_grad)
+            else:
+                chain_grad *= self.act_prime[i]
             old_weights = self.weights[i].copy()
             self.weights[i] -= self.LR * np.dot(self.acts[i].reshape(-1, 1), chain_grad)
             chain_grad = np.dot(chain_grad, np.transpose(old_weights, (1, 0)))
