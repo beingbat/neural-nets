@@ -247,6 +247,7 @@ class NeuralNetwork:
                 drop_temp=self.dropout_mask[i]
 
             self.weights[i] -= self.LR * (np.dot(self.acts[i].reshape(-1, 1), chain_grad)+ self.LRegularization_d(old_weights))*drop_temp
+            
             self.biases[i] -= self.LR*chain_grad
             chain_grad = np.dot(chain_grad, np.transpose(old_weights, (1, 0)))
 
