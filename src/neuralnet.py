@@ -3,7 +3,7 @@ import numpy as np
 
 class NeuralNetwork:
     def __init__(
-        self, network_shape, lr=0.01, loss_fn="quadratic", final_layer_act="sigmoid", weight_init="uniform"
+        self, network_shape, lr=0.01, loss_fn="quadratic", final_layer_act="sigmoid", weight_init="uniform", regularization=None, regularization_lambda=1e-5
     ):
         self.weights = [
             self.weights_initialization(weight_init)(shape = (network_shape[i], network_shape[i + 1]))
@@ -13,6 +13,9 @@ class NeuralNetwork:
             self.weights_initialization("uniform")(shape = (1, network_shape[i + 1]))
             for i in range(len(network_shape) - 1)
         ]
+
+        self.regularization_type = regularization
+        self.regularization_lambda = regularization_lambda
 
         self.loss, self.loss_d = self.get_loss(loss_fn)
         self.network_shape = network_shape
@@ -191,7 +194,7 @@ class NeuralNetwork:
         if len(temp.shape) > 1:
             temp = np.mean(temp, axis=0)
         self.costs_d = temp
-        return x, self.loss(x, y)
+        return x, self.loss(x, y) + self.LRegularization()
 
     # Gradients for: Hidden Layers Count 2
     # Gradient for W3
@@ -228,7 +231,21 @@ class NeuralNetwork:
             else:
                 chain_grad *= self.act_prime[i]
             old_weights = self.weights[i].copy()
-            self.weights[i] -= self.LR * np.dot(self.acts[i].reshape(-1, 1), chain_grad)
+            self.weights[i] -= self.LR * (np.dot(self.acts[i].reshape(-1, 1), chain_grad)+ self.LRegularization_d(old_weights))
             chain_grad = np.dot(chain_grad, np.transpose(old_weights, (1, 0)))
 
         self.reset_gradients()
+
+    def LRegularization_d(self, weights):
+        if (self.regularization_type == "L1"):
+            return np.sign(weights)*self.regularization_lambda
+        elif (self.regularization_type=="L2"):
+            return weights*self.regularization_lambda/2
+        return 0
+
+    def LRegularization(self):
+        if (self.regularization_type == "L1"):
+            return self.regularization_lambda*np.sum(np.array([np.sum(i) for i in self.weights]))
+        elif (self.regularization_type=="L2"):
+            return self.regularization_lambda*np.sum(np.array([np.sum(i**2) for i in self.weights]))
+        return 0
