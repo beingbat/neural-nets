@@ -3,14 +3,14 @@ import numpy as np
 
 class NeuralNetwork:
     def __init__(
-        self, network_shape, lr=0.01, loss_fn="quadratic", final_layer_act="sigmoid"
+        self, network_shape, lr=0.01, loss_fn="quadratic", final_layer_act="sigmoid", weight_init="uniform"
     ):
         self.weights = [
-            self.weights_initialization("u")(network_shape[i], network_shape[i + 1])
+            self.weights_initialization(weight_init)(shape = (network_shape[i], network_shape[i + 1]))
             for i in range(len(network_shape) - 1)
         ]
         self.biases = [
-            self.weights_initialization("u")(1, network_shape[i + 1])
+            self.weights_initialization("uniform")(shape = (1, network_shape[i + 1]))
             for i in range(len(network_shape) - 1)
         ]
 
@@ -38,10 +38,28 @@ class NeuralNetwork:
         self.costs_d = np.zeros(self.network_shape[-1])
 
     def weights_initialization(self, char):
-        if char == "u":
-            return np.random.randn
-        else:
-            return np.random.randn
+        if char == "he": # Guassian Distribution with std sqrt(2/input_size)
+            return self.he_weights
+        elif char == "xavier": # unifrom between -1/sqrt(input_size) | 1/sqrt(input_size)  
+            return self.xavier_weights
+        else: # uniform between -1 and 1
+            return self.uniform_weights
+        
+    # Works better in case of ReLU than xavier
+    def he_weights(self, shape):
+        return np.random.randn(shape[0], shape[1])*np.sqrt(2/shape[0])
+    
+    # Works better than uniform, reducing weights is kind of regulatization that helps model to train better
+    def xavier_weights(self, shape):
+        upper = (1.0 / np.sqrt(shape[0]))
+        lower = - upper
+        return lower + np.random.rand(shape[0], shape[1]) * (upper - lower)
+    
+    def uniform_weights(self, shape):
+        upper = 1
+        lower = - upper
+        return lower + np.random.rand(shape[0], shape[1]) * (upper - lower)
+
 
     # LOSSES
 
