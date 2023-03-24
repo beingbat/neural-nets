@@ -7,6 +7,7 @@ def test_evaluation(net, data):
     matches = []
     d_x, d_y = preprocess_data(data)
     for x, y in zip(d_x, d_y):
+        net.eval()
         pred, _ = net.forward(x, y)
         matches.append(np.argmax(pred) == np.argmax(y))
     matches = np.array(matches).astype(int)

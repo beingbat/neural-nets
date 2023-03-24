@@ -3,7 +3,7 @@ import numpy as np
 
 class NeuralNetwork:
     def __init__(
-        self, network_shape, lr=0.01, loss_fn="quadratic", final_layer_act="sigmoid", weight_init="uniform", regularization=None, regularization_lambda=1e-5
+        self, network_shape, lr=0.01, loss_fn="quadratic", final_layer_act="sigmoid", weight_init="uniform", regularization=None, regularization_lambda=1e-5, dropout=0
     ):
         self.weights = [
             self.weights_initialization(weight_init)(shape = (network_shape[i], network_shape[i + 1]))
@@ -13,7 +13,7 @@ class NeuralNetwork:
             self.weights_initialization("uniform")(shape = (1, network_shape[i + 1]))
             for i in range(len(network_shape) - 1)
         ]
-
+        self.dropout_threshold = dropout
         self.regularization_type = regularization
         self.regularization_lambda = regularization_lambda
 
@@ -156,10 +156,19 @@ class NeuralNetwork:
                     grad.append(-sfts[i] * sfts[j])
             arr.append(grad)
         return arr
+    
+    def initialize_dropout_mask(self):
+        self.dropout_mask = [(np.random.sample(i.shape)>=self.dropout_threshold).astype(int) for i in self.weights]
+        self.dropout_mask[-1] = np.ones(self.dropout_mask[-1].shape)
+
+    def eval(self):
+        self.dropout_threshold = 0
+
 
     # NETWORK PASSES
-
     def forward(self, x, y):
+        if self.dropout_threshold != 0:
+            self.initialize_dropout_mask()
         self.current_act = self.intermediate_act
         self.current_act_prime = self.intermediate_act_prime
         self.acts[0] = np.mean(x, axis=0)
@@ -169,7 +178,7 @@ class NeuralNetwork:
                 self.current_act_prime = self.final_act_prime
 
             # Z = X*W + b
-            x = np.dot(x, self.weights[i]) + self.biases[i]
+            x = np.dot(x, self.weights[i]*self.dropout_mask[i]) + self.biases[i]
             # dA/dZ
             temp = self.current_act_prime(np.squeeze(x.copy()))
             if i + 1 == len(self.weights):
@@ -231,7 +240,14 @@ class NeuralNetwork:
             else:
                 chain_grad *= self.act_prime[i]
             old_weights = self.weights[i].copy()
-            self.weights[i] -= self.LR * (np.dot(self.acts[i].reshape(-1, 1), chain_grad)+ self.LRegularization_d(old_weights))
+
+            # Check if dropout is enabled
+            drop_temp = 1
+            if self.dropout_threshold != 0:
+                drop_temp=self.dropout_mask[i]
+
+            self.weights[i] -= self.LR * (np.dot(self.acts[i].reshape(-1, 1), chain_grad)+ self.LRegularization_d(old_weights))*drop_temp
+            self.biases[i] -= self.LR*chain_grad
             chain_grad = np.dot(chain_grad, np.transpose(old_weights, (1, 0)))
 
         self.reset_gradients()
