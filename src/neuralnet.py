@@ -3,7 +3,7 @@ import numpy as np
 
 class NeuralNetwork:
     def __init__(
-        self, network_shape, lr=0.01, loss_fn="quadratic", final_layer_act="sigmoid", weight_init="uniform", regularization=None, regularization_lambda=1e-5, dropout=0
+        self, network_shape, lr=0.01, loss_fn="quadratic", intermediate_act="sigmoid", final_layer_act="sigmoid", weight_init="uniform", regularization=None, regularization_lambda=1e-5, dropout=0
     ):
         self.weights = [
             self.weights_initialization(weight_init)(shape = (network_shape[i], network_shape[i + 1]))
@@ -22,7 +22,7 @@ class NeuralNetwork:
         self.reset_gradients()
         self.LR = lr
 
-        self.final_layer_act(final_layer_act)
+        self.initialize_activations(intermediate_activations = intermediate_act, final_activation = final_layer_act)
         self.current_act = self.intermediate_act
         self.current_act_prime = self.intermediate_act_prime
         self.unreduced_final_act_prime = None
@@ -102,22 +102,52 @@ class NeuralNetwork:
 
     # ACTIVATIONS
 
-    def final_layer_act(self, name):
-        self.intermediate_act = self.sigmoid
-        self.intermediate_act_prime = self.sigmoid_prime
-        if name == "softmax":
-            self.final_act = self.softmax
-            self.final_act_prime = self.softmax_prime
-            self.final_act_prime_val = []
-        else:
-            self.final_act = self.sigmoid
-            self.final_act_prime = self.sigmoid_prime
+    def initialize_activations(self, intermediate_activations, final_activation):
+
+        match intermediate_activations:
+            case "tanh":
+                self.intermediate_act=self.tanh
+                self.intermediate_act_prime = self.tanh_prime
+            case "relu":
+                self.intermediate_act=self.relu
+                self.intermediate_act_prime = self.relu_prime
+            case _:
+                self.intermediate_act=self.sigmoid
+                self.intermediate_act_prime = self.sigmoid_prime
+
+        
+        match final_activation:
+            case "tanh":
+                self.final_act=self.tanh
+                self.final_act_prime = self.tanh_prime
+            case "relu":
+                self.final_act=self.relu
+                self.final_act_prime = self.relu_prime
+            case "softmax":
+                self.final_act = self.softmax
+                self.final_act_prime = self.softmax_prime
+            case _:
+                self.final_act=self.sigmoid
+                self.final_act_prime = self.sigmoid_prime
 
     def sigmoid(self, x):
         return 1 / (1 + np.exp(-np.float64(x)))
 
     def sigmoid_prime(self, x):
         return self.sigmoid(x) * (1 - self.sigmoid(x))
+    
+    def tanh(self, x):
+        return (2 / (1 + np.exp(-2*np.float64(x)))) - 1
+
+    def tanh_prime(self, x):
+        return 1 - self.tanh(x)**2
+
+    def relu(self, x):
+        return x*(x>=0).astype(int)
+
+    def relu_prime(self, x):
+        return (x>=0).astype(int)
+
 
     def softmax(self, x):
         exps = np.exp(x)
@@ -167,8 +197,7 @@ class NeuralNetwork:
 
     # NETWORK PASSES
     def forward(self, x, y):
-        if self.dropout_threshold != 0:
-            self.initialize_dropout_mask()
+        self.initialize_dropout_mask()
         self.current_act = self.intermediate_act
         self.current_act_prime = self.intermediate_act_prime
         self.acts[0] = np.mean(x, axis=0)
@@ -247,7 +276,7 @@ class NeuralNetwork:
                 drop_temp=self.dropout_mask[i]
 
             self.weights[i] -= self.LR * (np.dot(self.acts[i].reshape(-1, 1), chain_grad)+ self.LRegularization_d(old_weights))*drop_temp
-            
+
             self.biases[i] -= self.LR*chain_grad
             chain_grad = np.dot(chain_grad, np.transpose(old_weights, (1, 0)))
 
