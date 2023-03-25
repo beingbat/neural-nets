@@ -43,4 +43,3 @@ def train(net, train_data, epochs=1, batch_size=1):
                     "P/A: ": str(np.argmax(pred, axis=-1)) + "/" + str(np.argmax(y, axis=-1)),
                 }
             )
-    

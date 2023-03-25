@@ -3,7 +3,7 @@ import numpy as np
 
 class NeuralNetwork:
     def __init__(
-        self, network_shape, lr=0.01, loss_fn="quadratic", intermediate_act="sigmoid", final_layer_act="sigmoid", weight_init="uniform", regularization=None, regularization_lambda=1e-5, dropout=0
+        self, network_shape, lr=0.01, loss_fn="quadratic", intermediate_act="sigmoid", final_layer_act="sigmoid", weight_init="uniform", regularization=None, regularization_lambda=1e-5, dropout=0, momentum=0.99, optimizer="SGD"
     ):
         self.weights = [
             self.weights_initialization(weight_init)(shape = (network_shape[i], network_shape[i + 1]))
@@ -13,24 +13,32 @@ class NeuralNetwork:
             self.weights_initialization("uniform")(shape = (1, network_shape[i + 1]))
             for i in range(len(network_shape) - 1)
         ]
+       
+        self.network_shape = network_shape
+        self.LR = lr
+        self.momentum = momentum
+        self.optimizer = optimizer
+
+        self.unreduced_final_act_prime = None
+        self.unreduced_costd = None
+
         self.dropout_threshold = dropout
         self.regularization_type = regularization
         self.regularization_lambda = regularization_lambda
 
+        self.reset_intermediate_gradients()
+        self.reset_weight_gradients()
         self.loss, self.loss_d = self.get_loss(loss_fn)
-        self.network_shape = network_shape
-        self.reset_gradients()
-        self.LR = lr
-
         self.initialize_activations(intermediate_activations = intermediate_act, final_activation = final_layer_act)
+
         self.current_act = self.intermediate_act
         self.current_act_prime = self.intermediate_act_prime
-        self.unreduced_final_act_prime = None
-        self.unreduced_costd = None
+        
 
     # WEIGHTS AND GRADIENTS
 
-    def reset_gradients(self):
+    # This method is used for keeping intermediate gradients (not the weight gradients)
+    def reset_intermediate_gradients(self):
         self.act_prime = [
             np.zeros((self.network_shape[i + 1]))
             for i in range(len(self.network_shape) - 1)
@@ -39,6 +47,11 @@ class NeuralNetwork:
             np.zeros(self.network_shape[i]) for i in range(len(self.network_shape))
         ]
         self.costs_d = np.zeros(self.network_shape[-1])
+
+    # This method initializes weights graidents
+    def reset_weight_gradients(self):
+        self.weights_grad = [np.zeros(i.shape) for i in self.weights]
+        self.bias_grad = [np.zeros(i.shape) for i in self.biases]
 
     def weights_initialization(self, char):
         if char == "he": # Guassian Distribution with std sqrt(2/input_size)
@@ -62,16 +75,18 @@ class NeuralNetwork:
         upper = 1
         lower = - upper
         return lower + np.random.rand(shape[0], shape[1]) * (upper - lower)
+    
+    
 
 
     # LOSSES
 
     def get_loss(self, loss):
-        if loss == "BCE":
+        if loss == "bce":
             return self.binary_cross_entropy_loss, self.binary_cross_entropy_loss_d
-        elif loss == "CE":
+        elif loss == "ce":
             return self.cross_entropy_loss, self.cross_entropy_loss_d
-        else:
+        else: # mse
             return self.quadratic_loss, self.quadratic_loss_d
 
     # MSE
@@ -95,7 +110,7 @@ class NeuralNetwork:
 
     # CE Loss
     def cross_entropy_loss(self, a, y):
-        return -np.sum(y * np.log2(a), axis=0)
+        return -np.sum(y * np.log2(a+1e-8), axis=0)
 
     def cross_entropy_loss_d(self, a, y):
         return -(y / (a + 1e-2))
@@ -114,7 +129,6 @@ class NeuralNetwork:
             case _:
                 self.intermediate_act=self.sigmoid
                 self.intermediate_act_prime = self.sigmoid_prime
-
         
         match final_activation:
             case "tanh":
@@ -147,7 +161,6 @@ class NeuralNetwork:
 
     def relu_prime(self, x):
         return (x>=0).astype(int)
-
 
     def softmax(self, x):
         exps = np.exp(x)
@@ -187,15 +200,42 @@ class NeuralNetwork:
             arr.append(grad)
         return arr
     
+    def resolve_cost_for_softmax(self):
+        costd = self.unreduced_costd
+        if len(costd.shape) == 1:
+            costd = costd.reshape(1, -1)
+        prime = self.unreduced_final_act_prime
+
+        for i in range(len(costd)):
+            for j in range(len(costd[i])):
+                prime[i, :, j] *= costd[i, j]
+        return np.mean(np.sum(prime, axis=-1).reshape(prime.shape[0], -1), axis=0).reshape(1,-1)
+
+    # REGULARIZATIONS
+
     def initialize_dropout_mask(self):
         self.dropout_mask = [(np.random.sample(i.shape)>=self.dropout_threshold).astype(int) for i in self.weights]
         self.dropout_mask[-1] = np.ones(self.dropout_mask[-1].shape)
 
+    def LRegularization(self):
+        if (self.regularization_type == "l1"):
+            return self.regularization_lambda*np.sum(np.array([np.sum(i) for i in self.weights]))
+        elif (self.regularization_type=="l2"):
+            return self.regularization_lambda*np.sum(np.array([np.sum(i**2) for i in self.weights]))
+        return 0
+
+    def LRegularization_d(self, weights):
+        if (self.regularization_type == "l1"):
+            return np.sign(weights)*self.regularization_lambda
+        elif (self.regularization_type=="l2"):
+            return weights*self.regularization_lambda/2
+        return 0
+
     def eval(self):
         self.dropout_threshold = 0
 
-
     # NETWORK PASSES
+
     def forward(self, x, y):
         self.initialize_dropout_mask()
         self.current_act = self.intermediate_act
@@ -249,17 +289,6 @@ class NeuralNetwork:
     # dZn/dWn = X_(n-1)
     # These two can be calculated during the forward pass, as the activation function and its derivative are known and as well as input
 
-    def resolve_cost_for_softmax(self):
-        costd = self.unreduced_costd
-        if len(costd.shape) == 1:
-            costd = costd.reshape(1, -1)
-        prime = self.unreduced_final_act_prime
-
-        for i in range(len(costd)):
-            for j in range(len(costd[i])):
-                prime[i, :, j] *= costd[i, j]
-        return np.mean(np.sum(prime, axis=-1).reshape(prime.shape[0], -1), axis=0).reshape(1,-1)
-
     def backward(self):
         chain_grad = self.costs_d.reshape(1, -1)
         # print("dC/dz: ", chain_grad*self.act_prime[-1])
@@ -271,27 +300,21 @@ class NeuralNetwork:
             old_weights = self.weights[i].copy()
 
             # Check if dropout is enabled
-            drop_temp = 1
+            drop_mask = 1
             if self.dropout_threshold != 0:
-                drop_temp=self.dropout_mask[i]
+                drop_mask=self.dropout_mask[i]
 
-            self.weights[i] -= self.LR * (np.dot(self.acts[i].reshape(-1, 1), chain_grad)+ self.LRegularization_d(old_weights))*drop_temp
-
-            self.biases[i] -= self.LR*chain_grad
+            if self.optimizer == "sgd_momentum":
+                self.weights_grad[i] = self.LR * np.dot(self.acts[i].reshape(-1, 1), chain_grad) + self.momentum * self.weights_grad[i]
+                self.bias_grad[i] = self.LR * chain_grad + self.momentum * self.bias_grad[i]
+            elif self.optimizer == "sgd":
+                self.weights_grad[i] = self.LR * np.dot(self.acts[i].reshape(-1, 1), chain_grad)
+                self.bias_grad[i] = self.LR * chain_grad
+            else:
+                print(f"Invalid optimizer: {self.optimizer} selected.\n")
+                return 
+            self.biases[i] -= self.bias_grad[i]
+            self.weights[i] -= (self.weights_grad[i] + self.LR * self.LRegularization_d(old_weights)) * drop_mask
             chain_grad = np.dot(chain_grad, np.transpose(old_weights, (1, 0)))
 
-        self.reset_gradients()
-
-    def LRegularization_d(self, weights):
-        if (self.regularization_type == "L1"):
-            return np.sign(weights)*self.regularization_lambda
-        elif (self.regularization_type=="L2"):
-            return weights*self.regularization_lambda/2
-        return 0
-
-    def LRegularization(self):
-        if (self.regularization_type == "L1"):
-            return self.regularization_lambda*np.sum(np.array([np.sum(i) for i in self.weights]))
-        elif (self.regularization_type=="L2"):
-            return self.regularization_lambda*np.sum(np.array([np.sum(i**2) for i in self.weights]))
-        return 0
+        self.reset_intermediate_gradients()
