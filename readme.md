@@ -1,7 +1,7 @@
-# Neural Networks from scratch (working with MNIST)
+# Neural Networks from scratch (Deep Learning core with `MNIST`)
 
-Data: Inputs have shape (B,786) and labels have (B,10) where B=Batch. 
-Code for MNIST data loading is not included but can be found online.
+Data: Inputs have shape $(B,786)$ and labels have $(B,10)$ where $B=Batch$. 
+Code for `MNIST` data loading is not included but can be found online.
 
 *Inspired by: `http://neuralnetworksanddeeplearning.com/`*
 
