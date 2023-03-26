@@ -1,16 +1,21 @@
 import numpy as np
 
+
 class NeuralNetwork:
-    def __init__(self, network_shape, lr=0.01, loss_fn="quadratic", weight_init="uniform"):
+    def __init__(
+        self, network_shape, lr=0.01, loss_fn="quadratic", weight_init="uniform"
+    ):
         self.weights = [
-            self.weights_initialization(weight_init)(shape = (network_shape[i], network_shape[i + 1]))
+            self.weights_initialization(weight_init)(
+                shape=(network_shape[i], network_shape[i + 1])
+            )
             for i in range(len(network_shape) - 1)
         ]
         self.biases = [
-            self.weights_initialization("uniform")(shape = (1, network_shape[i + 1]))
+            self.weights_initialization("uniform")(shape=(1, network_shape[i + 1]))
             for i in range(len(network_shape) - 1)
         ]
-       
+
         self.network_shape = network_shape
         self.LR = lr
 
@@ -24,7 +29,6 @@ class NeuralNetwork:
         self.activation_setup()
         self.regularization_setup()
         self.optimizer_setup()
-        
 
     # OPTIMIZERS
 
@@ -47,8 +51,7 @@ class NeuralNetwork:
     def decay_betas(self):
         if self.optimizer == "adam":
             self.beta1 *= self.original_beta1
-            self.beta2 *= self.original_beta2 
-    
+            self.beta2 *= self.original_beta2
 
     # WEIGHTS AND GRADIENTS
 
@@ -69,26 +72,28 @@ class NeuralNetwork:
         self.bias_grad = [np.zeros(i.shape) for i in self.biases]
 
     def weights_initialization(self, char):
-        if char == "he": # Guassian Distribution with std sqrt(2/input_size)
+        if char == "he":  # Guassian Distribution with std sqrt(2/input_size)
             return self.he_weights
-        elif char == "xavier": # unifrom between -1/sqrt(input_size) | 1/sqrt(input_size)  
+        elif (
+            char == "xavier"
+        ):  # unifrom between -1/sqrt(input_size) | 1/sqrt(input_size)
             return self.xavier_weights
-        else: # uniform between -1 and 1
+        else:  # uniform between -1 and 1
             return self.uniform_weights
-        
+
     # Works better in case of ReLU than xavier
     def he_weights(self, shape):
-        return np.random.randn(shape[0], shape[1])*np.sqrt(2/shape[0])
-    
+        return np.random.randn(shape[0], shape[1]) * np.sqrt(2 / shape[0])
+
     # Works better than uniform, reducing weights is kind of regulatization that helps model to train better
     def xavier_weights(self, shape):
-        upper = (1.0 / np.sqrt(shape[0]))
-        lower = - upper
+        upper = 1.0 / np.sqrt(shape[0])
+        lower = -upper
         return lower + np.random.rand(shape[0], shape[1]) * (upper - lower)
-    
+
     def uniform_weights(self, shape):
         upper = 1
-        lower = - upper
+        lower = -upper
         return lower + np.random.rand(shape[0], shape[1]) * (upper - lower)
 
     # LOSSES
@@ -98,7 +103,7 @@ class NeuralNetwork:
             return self.binary_cross_entropy_loss, self.binary_cross_entropy_loss_d
         elif loss == "ce":
             return self.cross_entropy_loss, self.cross_entropy_loss_d
-        else: # mse
+        else:  # mse
             return self.quadratic_loss, self.quadratic_loss_d
 
     # MSE
@@ -122,14 +127,14 @@ class NeuralNetwork:
 
     # CE Loss
     def cross_entropy_loss(self, a, y):
-        return -np.sum(y * np.log2(a+1e-8), axis=0)
+        return -np.sum(y * np.log2(a + 1e-8), axis=0)
 
     def cross_entropy_loss_d(self, a, y):
         return -(y / (a + 1e-2))
 
     # ACTIVATIONS
 
-    def activation_setup(self, activations=("sigmoid", )):
+    def activation_setup(self, activations=("sigmoid",)):
         if len(activations) == 2:
             self.initialize_activations(activations[0], activations[1])
         else:
@@ -137,32 +142,31 @@ class NeuralNetwork:
         self.current_act = self.intermediate_act
         self.current_act_prime = self.intermediate_act_prime
 
-
     def initialize_activations(self, intermediate_activations, final_activation):
 
         match intermediate_activations:
             case "tanh":
-                self.intermediate_act=self.tanh
+                self.intermediate_act = self.tanh
                 self.intermediate_act_prime = self.tanh_prime
             case "relu":
-                self.intermediate_act=self.relu
+                self.intermediate_act = self.relu
                 self.intermediate_act_prime = self.relu_prime
             case _:
-                self.intermediate_act=self.sigmoid
+                self.intermediate_act = self.sigmoid
                 self.intermediate_act_prime = self.sigmoid_prime
-        
+
         match final_activation:
             case "tanh":
-                self.final_act=self.tanh
+                self.final_act = self.tanh
                 self.final_act_prime = self.tanh_prime
             case "relu":
-                self.final_act=self.relu
+                self.final_act = self.relu
                 self.final_act_prime = self.relu_prime
             case "softmax":
                 self.final_act = self.softmax
                 self.final_act_prime = self.softmax_prime
             case _:
-                self.final_act=self.sigmoid
+                self.final_act = self.sigmoid
                 self.final_act_prime = self.sigmoid_prime
 
     def sigmoid(self, x):
@@ -170,18 +174,18 @@ class NeuralNetwork:
 
     def sigmoid_prime(self, x):
         return self.sigmoid(x) * (1 - self.sigmoid(x))
-    
+
     def tanh(self, x):
-        return (2 / (1 + np.exp(-2*np.float64(x)))) - 1
+        return (2 / (1 + np.exp(-2 * np.float64(x)))) - 1
 
     def tanh_prime(self, x):
-        return 1 - self.tanh(x)**2
+        return 1 - self.tanh(x) ** 2
 
     def relu(self, x):
-        return x*(x>=0).astype(int)
+        return x * (x >= 0).astype(int)
 
     def relu_prime(self, x):
-        return (x>=0).astype(int)
+        return (x >= 0).astype(int)
 
     def softmax(self, x):
         exps = np.exp(x)
@@ -220,7 +224,7 @@ class NeuralNetwork:
                     grad.append(-sfts[i] * sfts[j])
             arr.append(grad)
         return arr
-    
+
     def resolve_cost_for_softmax(self):
         costd = self.__unreduced_costd
         if len(costd.shape) == 1:
@@ -230,31 +234,40 @@ class NeuralNetwork:
         for i in range(len(costd)):
             for j in range(len(costd[i])):
                 prime[i, :, j] *= costd[i, j]
-        return np.mean(np.sum(prime, axis=-1).reshape(prime.shape[0], -1), axis=0).reshape(1,-1)
+        return np.mean(
+            np.sum(prime, axis=-1).reshape(prime.shape[0], -1), axis=0
+        ).reshape(1, -1)
 
     # REGULARIZATIONS
 
-    def regularization_setup(self, regL=None, reglambda = None, dropout=0.0):
+    def regularization_setup(self, regL=None, reglambda=None, dropout=0.0):
         self.dropout_threshold = dropout
         self.regularization_type = regL
         self.regularization_lambda = reglambda
 
     def initialize_dropout_mask(self):
-        self.dropout_mask = [(np.random.sample(i.shape)>=self.dropout_threshold).astype(int) for i in self.weights]
+        self.dropout_mask = [
+            (np.random.sample(i.shape) >= self.dropout_threshold).astype(int)
+            for i in self.weights
+        ]
         self.dropout_mask[-1] = np.ones(self.dropout_mask[-1].shape)
 
     def LRegularization(self):
-        if (self.regularization_type == "l1"):
-            return self.regularization_lambda*np.sum(np.array([np.sum(i) for i in self.weights]))
-        elif (self.regularization_type=="l2"):
-            return self.regularization_lambda*np.sum(np.array([np.sum(i**2) for i in self.weights]))
+        if self.regularization_type == "l1":
+            return self.regularization_lambda * np.sum(
+                np.array([np.sum(i) for i in self.weights])
+            )
+        elif self.regularization_type == "l2":
+            return self.regularization_lambda * np.sum(
+                np.array([np.sum(i**2) for i in self.weights])
+            )
         return 0
 
     def LRegularization_d(self, weights):
-        if (self.regularization_type == "l1"):
-            return np.sign(weights)*self.regularization_lambda
-        elif (self.regularization_type=="l2"):
-            return weights*self.regularization_lambda/2
+        if self.regularization_type == "l1":
+            return np.sign(weights) * self.regularization_lambda
+        elif self.regularization_type == "l2":
+            return weights * self.regularization_lambda / 2
         return 0
 
     def eval(self):
@@ -273,7 +286,7 @@ class NeuralNetwork:
                 self.current_act_prime = self.final_act_prime
 
             # Z = X*W + b
-            x = np.dot(x, self.weights[i]*self.dropout_mask[i]) + self.biases[i]
+            x = np.dot(x, self.weights[i] * self.dropout_mask[i]) + self.biases[i]
             # dA/dZ
             temp = self.current_act_prime(np.squeeze(x.copy()))
             if i + 1 == len(self.weights):
@@ -328,30 +341,58 @@ class NeuralNetwork:
             # Check if dropout is enabled
             drop_mask = 1
             if self.dropout_threshold != 0:
-                drop_mask=self.dropout_mask[i]
+                drop_mask = self.dropout_mask[i]
 
             if self.optimizer == "sgd_momentum":
-                self.weights_grad[i] = self.LR * np.dot(self.acts[i].reshape(-1, 1), chain_grad) + self.momentum * self.weights_grad[i]
-                self.bias_grad[i] = self.LR * chain_grad + self.momentum * self.bias_grad[i]
+                self.weights_grad[i] = self.LR * (
+                    (1 - self.momentum)
+                    * np.dot(self.acts[i].reshape(-1, 1), chain_grad)
+                    + self.momentum * self.weights_grad[i]
+                )
+                self.bias_grad[i] = self.LR * (
+                    (1 - self.momentum) * chain_grad + self.momentum * self.bias_grad[i]
+                )
             elif self.optimizer == "adam":
                 self.weights_grad[i] = np.dot(self.acts[i].reshape(-1, 1), chain_grad)
                 self.bias_grad[i] = chain_grad
 
-                self.adam_mean_bias[i] = self.beta1*self.adam_mean_bias[i]+(1-self.beta1)*self.bias_grad[i]
-                self.adam_variance_bias[i] = self.beta2*self.adam_variance_bias[i]+(1-self.beta2)*(self.bias_grad[i]**2)
-                self.adam_mean_weights[i] = self.beta1*self.adam_mean_weights[i]+(1-self.beta1)*self.weights_grad[i]
-                self.adam_variance_weights[i] = self.beta2*self.adam_variance_weights[i]+(1-self.beta2)*(self.weights_grad[i]**2)
-                alpha_adjusted = self.LR*np.sqrt(1-self.beta2)/(1-self.beta1)
-                self.weights_grad[i] = alpha_adjusted * self.adam_mean_weights[i] / (np.sqrt(self.adam_variance_weights[i]) + 1e-6) 
-                self.bias_grad[i] = alpha_adjusted * self.adam_mean_bias[i] / (np.sqrt(self.adam_variance_bias[i]) + 1e-6) 
+                self.adam_mean_bias[i] = (
+                    self.beta1 * self.adam_mean_bias[i]
+                    + (1 - self.beta1) * self.bias_grad[i]
+                )
+                self.adam_variance_bias[i] = self.beta2 * self.adam_variance_bias[i] + (
+                    1 - self.beta2
+                ) * (self.bias_grad[i] ** 2)
+                self.adam_mean_weights[i] = (
+                    self.beta1 * self.adam_mean_weights[i]
+                    + (1 - self.beta1) * self.weights_grad[i]
+                )
+                self.adam_variance_weights[i] = self.beta2 * self.adam_variance_weights[
+                    i
+                ] + (1 - self.beta2) * (self.weights_grad[i] ** 2)
+                alpha_adjusted = self.LR * np.sqrt(1 - self.beta2) / (1 - self.beta1)
+                self.weights_grad[i] = (
+                    alpha_adjusted
+                    * self.adam_mean_weights[i]
+                    / (np.sqrt(self.adam_variance_weights[i]) + 1e-6)
+                )
+                self.bias_grad[i] = (
+                    alpha_adjusted
+                    * self.adam_mean_bias[i]
+                    / (np.sqrt(self.adam_variance_bias[i]) + 1e-6)
+                )
             elif self.optimizer == "sgd":
-                self.weights_grad[i] = self.LR * np.dot(self.acts[i].reshape(-1, 1), chain_grad)
+                self.weights_grad[i] = self.LR * np.dot(
+                    self.acts[i].reshape(-1, 1), chain_grad
+                )
                 self.bias_grad[i] = self.LR * chain_grad
             else:
                 print(f"Invalid optimizer: {self.optimizer} selected.\n")
-                return 
+                return
             self.biases[i] -= self.bias_grad[i]
-            self.weights[i] -= (self.weights_grad[i] + self.LR * self.LRegularization_d(old_weights)) * drop_mask
+            self.weights[i] -= (
+                self.weights_grad[i] + self.LR * self.LRegularization_d(old_weights)
+            ) * drop_mask
             chain_grad = np.dot(chain_grad, np.transpose(old_weights, (1, 0)))
 
         self.reset_intermediate_gradients()

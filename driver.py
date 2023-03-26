@@ -9,7 +9,7 @@ train_data, valid_data, test_data = load_data_wrapper()
 # loss_fn = mse, bce, ce (ce and softmax should be used together)
 # weight_init = he, xavier, uniform
 network = NeuralNetwork(network_shape=(784, 128, 10), 
-                  lr=0.0001, 
+                  lr=0.1, 
                   loss_fn="ce", 
                   weight_init="he")
 
@@ -24,8 +24,8 @@ network.regularization_setup(regL="None", reglambda=1e-5, dropout=0.0)
 # optimizer_name=name, args=(args for that optimizer)
 # sgd_momentum args = (momentum = 0.0 - 1.0)
 # adam args = (*beta1* (for first moment [mean]) = 0.0-1.0,  *beta2* (for second moment [variance]) = 0.0-1.0)
-# network.optimizer_setup(optimizer_name="sgd_momentum", args=(0.2,))
-network.optimizer_setup(optimizer_name="adam", args=(0.9, 0.999))
+network.optimizer_setup(optimizer_name="sgd_momentum", args=(0.9,))
+# network.optimizer_setup(optimizer_name="adam", args=(0.9, 0.999))
 
 train(network, 
       train_data, 
