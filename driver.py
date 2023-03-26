@@ -30,7 +30,7 @@ network.optimizer_setup(optimizer_name="adam", args=(0.9, 0.999))
 train(network, 
       train_data, 
       epochs=2, 
-      batch_size=4)
+      batch_size=8)
 
 print("Train Accuracy: ", test_evaluation(network, train_data), "%")
 print("Validation Accuracy: ", test_evaluation(network, valid_data), "%")

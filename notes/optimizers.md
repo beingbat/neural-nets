@@ -28,7 +28,7 @@ Initialize $m = 0, v = 0$ for all weights, biases
 
     $t$ denotes number of iterations done i.e. how many times backpropagation is performed.
 
-Decay $beta1$ and $beta2$: (Not sure should it be done after epoch or after each `iteration` of an `epoch`, online sources suggest after each `iteration`):
+Decay $beta1$ and $beta2$: (Not sure should it be done after epoch or after each `iteration` of an `epoch`, online sources suggest after each `iteration` but i update them after each `epoch`):
 
     $beta1(t) = beta1(t=0)^t$
 
