@@ -1,5 +1,6 @@
 import numpy as np
 from tqdm import tqdm
+from neuralnet import NeuralNetwork
 
 def test_evaluation(net, data):
     matches = []
@@ -25,7 +26,7 @@ def preprocess_data(data):
         data_y = np.expand_dims(data_y, axis=0)
     return data_x, data_y
 
-def train(net, train_data, epochs=1, batch_size=1):
+def train(net : NeuralNetwork, train_data, epochs=1, batch_size=1):
     epoch_iterable = tqdm(range(epochs))
     for i in epoch_iterable:
         epoch_iterable.set_description("Epoch: " + str(i))
@@ -41,3 +42,4 @@ def train(net, train_data, epochs=1, batch_size=1):
                     "P/A: ": str(np.argmax(pred, axis=-1)) + "/" + str(np.argmax(y, axis=-1)),
                 }
             )
+            net.decay_betas()

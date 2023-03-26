@@ -36,20 +36,19 @@ class NeuralNetwork:
             case "adam":
                 self.beta1 = args[0]
                 self.beta2 = args[1]
+                self.original_beta1 = args[0]
+                self.original_beta2 = args[1]
+                self.adam_mean_weights = [np.zeros(i.shape) for i in self.weights]
+                self.adam_mean_bias = [np.zeros(i.shape) for i in self.biases]
+                self.adam_variance_weights = [np.zeros(i.shape) for i in self.weights]
+                self.adam_variance_bias = [np.zeros(i.shape) for i in self.biases]
             # case _: # sgd
 
-    def activation_setup(self, activations=("sigmoid", )):
-        if len(activations) == 2:
-            self.initialize_activations(activations[0], activations[1])
-        else:
-            self.initialize_activations(activations[0], activations[0])
-        self.current_act = self.intermediate_act
-        self.current_act_prime = self.intermediate_act_prime
-
-    def regularization_setup(self, regL=None, reglambda = None, dropout=0.0):
-        self.dropout_threshold = dropout
-        self.regularization_type = regL
-        self.regularization_lambda = reglambda
+    def decay_betas(self):
+        if self.optimizer == "adam":
+            self.beta1 *= self.original_beta1
+            self.beta2 *= self.original_beta2 
+    
 
     # WEIGHTS AND GRADIENTS
 
@@ -129,6 +128,15 @@ class NeuralNetwork:
         return -(y / (a + 1e-2))
 
     # ACTIVATIONS
+
+    def activation_setup(self, activations=("sigmoid", )):
+        if len(activations) == 2:
+            self.initialize_activations(activations[0], activations[1])
+        else:
+            self.initialize_activations(activations[0], activations[0])
+        self.current_act = self.intermediate_act
+        self.current_act_prime = self.intermediate_act_prime
+
 
     def initialize_activations(self, intermediate_activations, final_activation):
 
@@ -226,6 +234,11 @@ class NeuralNetwork:
 
     # REGULARIZATIONS
 
+    def regularization_setup(self, regL=None, reglambda = None, dropout=0.0):
+        self.dropout_threshold = dropout
+        self.regularization_type = regL
+        self.regularization_lambda = reglambda
+
     def initialize_dropout_mask(self):
         self.dropout_mask = [(np.random.sample(i.shape)>=self.dropout_threshold).astype(int) for i in self.weights]
         self.dropout_mask[-1] = np.ones(self.dropout_mask[-1].shape)
@@ -320,6 +333,17 @@ class NeuralNetwork:
             if self.optimizer == "sgd_momentum":
                 self.weights_grad[i] = self.LR * np.dot(self.acts[i].reshape(-1, 1), chain_grad) + self.momentum * self.weights_grad[i]
                 self.bias_grad[i] = self.LR * chain_grad + self.momentum * self.bias_grad[i]
+            elif self.optimizer == "adam":
+                self.weights_grad[i] = np.dot(self.acts[i].reshape(-1, 1), chain_grad)
+                self.bias_grad[i] = chain_grad
+
+                self.adam_mean_bias[i] = self.beta1*self.adam_mean_bias[i]+(1-self.beta1)*self.bias_grad[i]
+                self.adam_variance_bias[i] = self.beta2*self.adam_variance_bias[i]+(1-self.beta2)*(self.bias_grad[i]**2)
+                self.adam_mean_weights[i] = self.beta1*self.adam_mean_weights[i]+(1-self.beta1)*self.weights_grad[i]
+                self.adam_variance_weights[i] = self.beta2*self.adam_variance_weights[i]+(1-self.beta2)*(self.weights_grad[i]**2)
+                alpha_adjusted = self.LR*np.sqrt(1-self.beta2)/(1-self.beta1)
+                self.weights_grad[i] = alpha_adjusted * self.adam_mean_weights[i] / (np.sqrt(self.adam_variance_weights[i]) + 1e-6) 
+                self.bias_grad[i] = alpha_adjusted * self.adam_mean_bias[i] / (np.sqrt(self.adam_variance_bias[i]) + 1e-6) 
             elif self.optimizer == "sgd":
                 self.weights_grad[i] = self.LR * np.dot(self.acts[i].reshape(-1, 1), chain_grad)
                 self.bias_grad[i] = self.LR * chain_grad
