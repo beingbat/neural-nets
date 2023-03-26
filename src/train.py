@@ -1,7 +1,5 @@
 import numpy as np
 from tqdm import tqdm
-from neuralnet import NeuralNetwork
-
 
 def test_evaluation(net, data):
     matches = []

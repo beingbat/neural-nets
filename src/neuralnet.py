@@ -1,10 +1,7 @@
 import numpy as np
 
-
 class NeuralNetwork:
-    def __init__(
-        self, network_shape, lr=0.01, loss_fn="quadratic", intermediate_act="sigmoid", final_layer_act="sigmoid", weight_init="uniform", regularization=None, regularization_lambda=1e-5, dropout=0, momentum=0.99, optimizer="SGD"
-    ):
+    def __init__(self, network_shape, lr=0.01, loss_fn="quadratic", weight_init="uniform"):
         self.weights = [
             self.weights_initialization(weight_init)(shape = (network_shape[i], network_shape[i + 1]))
             for i in range(len(network_shape) - 1)
@@ -16,24 +13,43 @@ class NeuralNetwork:
        
         self.network_shape = network_shape
         self.LR = lr
-        self.momentum = momentum
-        self.optimizer = optimizer
-
-        self.unreduced_final_act_prime = None
-        self.unreduced_costd = None
-
-        self.dropout_threshold = dropout
-        self.regularization_type = regularization
-        self.regularization_lambda = regularization_lambda
 
         self.reset_intermediate_gradients()
         self.reset_weight_gradients()
         self.loss, self.loss_d = self.get_loss(loss_fn)
-        self.initialize_activations(intermediate_activations = intermediate_act, final_activation = final_layer_act)
 
+        self.__unreduced_final_act_prime = None
+        self.__unreduced_costd = None
+
+        self.activation_setup()
+        self.regularization_setup()
+        self.optimizer_setup()
+        
+
+    # OPTIMIZERS
+
+    def optimizer_setup(self, optimizer_name="sgd", args=()):
+        self.optimizer = optimizer_name
+        match optimizer_name:
+            case "sgd_momentum":
+                self.momentum = args[0]
+            case "adam":
+                self.beta1 = args[0]
+                self.beta2 = args[1]
+            # case _: # sgd
+
+    def activation_setup(self, activations=("sigmoid", )):
+        if len(activations) == 2:
+            self.initialize_activations(activations[0], activations[1])
+        else:
+            self.initialize_activations(activations[0], activations[0])
         self.current_act = self.intermediate_act
         self.current_act_prime = self.intermediate_act_prime
-        
+
+    def regularization_setup(self, regL=None, reglambda = None, dropout=0.0):
+        self.dropout_threshold = dropout
+        self.regularization_type = regL
+        self.regularization_lambda = reglambda
 
     # WEIGHTS AND GRADIENTS
 
@@ -75,9 +91,6 @@ class NeuralNetwork:
         upper = 1
         lower = - upper
         return lower + np.random.rand(shape[0], shape[1]) * (upper - lower)
-    
-    
-
 
     # LOSSES
 
@@ -201,10 +214,10 @@ class NeuralNetwork:
         return arr
     
     def resolve_cost_for_softmax(self):
-        costd = self.unreduced_costd
+        costd = self.__unreduced_costd
         if len(costd.shape) == 1:
             costd = costd.reshape(1, -1)
-        prime = self.unreduced_final_act_prime
+        prime = self.__unreduced_final_act_prime
 
         for i in range(len(costd)):
             for j in range(len(costd[i])):
@@ -251,10 +264,10 @@ class NeuralNetwork:
             # dA/dZ
             temp = self.current_act_prime(np.squeeze(x.copy()))
             if i + 1 == len(self.weights):
-                self.unreduced_final_act_prime = temp.copy()
-                if len(self.unreduced_final_act_prime.shape) == 2:
-                    self.unreduced_final_act_prime = np.expand_dims(
-                        self.unreduced_final_act_prime, axis=0
+                self.__unreduced_final_act_prime = temp.copy()
+                if len(self.__unreduced_final_act_prime.shape) == 2:
+                    self.__unreduced_final_act_prime = np.expand_dims(
+                        self.__unreduced_final_act_prime, axis=0
                     )
             if len(temp.shape) > 1:
                 temp = np.mean(temp, axis=0)
@@ -268,7 +281,7 @@ class NeuralNetwork:
             self.acts[i + 1] = temp
             # X = A
         temp = self.loss_d(x, y)
-        self.unreduced_costd = temp.copy()
+        self.__unreduced_costd = temp.copy()
         if len(temp.shape) > 1:
             temp = np.mean(temp, axis=0)
         self.costs_d = temp
