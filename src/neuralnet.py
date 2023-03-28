@@ -1,18 +1,18 @@
 import numpy as np
-
+from common import *
 
 class NeuralNetwork:
     def __init__(
         self, network_shape, lr=0.01, loss_fn="quadratic", weight_init="uniform"
     ):
         self.weights = [
-            self.weights_initialization(weight_init)(
+            weights_initialization(weight_init)(
                 shape=(network_shape[i], network_shape[i + 1])
             )
             for i in range(len(network_shape) - 1)
         ]
         self.biases = [
-            self.weights_initialization("uniform")(shape=(1, network_shape[i + 1]))
+            weights_initialization("uniform")(shape=(1, network_shape[i + 1]))
             for i in range(len(network_shape) - 1)
         ]
 
@@ -21,7 +21,7 @@ class NeuralNetwork:
 
         self.reset_intermediate_gradients()
         self.reset_weight_gradients()
-        self.loss, self.loss_d = self.get_loss(loss_fn)
+        self.loss, self.loss_d = loss(loss_fn)
 
         self.__unreduced_final_act_prime = None
         self.__unreduced_costd = None
@@ -70,67 +70,7 @@ class NeuralNetwork:
     def reset_weight_gradients(self):
         self.weights_grad = [np.zeros(i.shape) for i in self.weights]
         self.bias_grad = [np.zeros(i.shape) for i in self.biases]
-
-    def weights_initialization(self, char):
-        if char == "he":  # Guassian Distribution with std sqrt(2/input_size)
-            return self.he_weights
-        elif (
-            char == "xavier"
-        ):  # unifrom between -1/sqrt(input_size) | 1/sqrt(input_size)
-            return self.xavier_weights
-        else:  # uniform between -1 and 1
-            return self.uniform_weights
-
-    # Works better in case of ReLU than xavier
-    def he_weights(self, shape):
-        return np.random.randn(shape[0], shape[1]) * np.sqrt(2 / shape[0])
-
-    # Works better than uniform, reducing weights is kind of regulatization that helps model to train better
-    def xavier_weights(self, shape):
-        upper = 1.0 / np.sqrt(shape[0])
-        lower = -upper
-        return lower + np.random.rand(shape[0], shape[1]) * (upper - lower)
-
-    def uniform_weights(self, shape):
-        upper = 1
-        lower = -upper
-        return lower + np.random.rand(shape[0], shape[1]) * (upper - lower)
-
-    # LOSSES
-
-    def get_loss(self, loss):
-        if loss == "bce":
-            return self.binary_cross_entropy_loss, self.binary_cross_entropy_loss_d
-        elif loss == "ce":
-            return self.cross_entropy_loss, self.cross_entropy_loss_d
-        else:  # mse
-            return self.quadratic_loss, self.quadratic_loss_d
-
-    # MSE
-    def quadratic_loss(self, a, y):
-        return 0.5 * (y - a) ** 2
-
-    def quadratic_loss_d(self, a, y):
-        return a - y
-
-    # BCE
-    def binary_cross_entropy_loss(self, a, y):
-        return -np.sum(y * np.log2(a + 1e-8) + (1 - y) * np.log2(1 - a + 1e-8), axis=0)
-
-    # Gives same derivative as MSE and also cancels out last layer's activation derivative as well, speeds up learning but may lead to exploding gradients
-    # It is binary because it deals each output neuron seperately, which is suitable when outputs are not mutually exclusive. In MNIST problem, the right way to treat outputs is together because they are mutually exclusive hence softmax (general sigmoid) activation should be used in final layer
-    def binary_cross_entropy_loss_d(self, a, y):
-        grad = -(y / (a + 1e-2)) + ((1 - y) / (1 - a + 1e-2))
-        # print("\n", y, "\n", [np.round(i, 2) for i in a], "\n", grad, "\n")
-        # print("a-y: ", a-y)
-        return grad
-
-    # CE Loss
-    def cross_entropy_loss(self, a, y):
-        return -np.sum(y * np.log2(a + 1e-8), axis=0)
-
-    def cross_entropy_loss_d(self, a, y):
-        return -(y / (a + 1e-2))
+  
 
     # ACTIVATIONS
 
@@ -146,86 +86,31 @@ class NeuralNetwork:
 
         match intermediate_activations:
             case "tanh":
-                self.intermediate_act = self.tanh
-                self.intermediate_act_prime = self.tanh_prime
+                self.intermediate_act = tanh
+                self.intermediate_act_prime = tanh_prime
             case "relu":
-                self.intermediate_act = self.relu
-                self.intermediate_act_prime = self.relu_prime
+                self.intermediate_act = relu
+                self.intermediate_act_prime = relu_prime
             case _:
-                self.intermediate_act = self.sigmoid
-                self.intermediate_act_prime = self.sigmoid_prime
+                self.intermediate_act = sigmoid
+                self.intermediate_act_prime = sigmoid_prime
 
         match final_activation:
             case "tanh":
-                self.final_act = self.tanh
-                self.final_act_prime = self.tanh_prime
+                self.final_act = tanh
+                self.final_act_prime = tanh_prime
             case "relu":
-                self.final_act = self.relu
-                self.final_act_prime = self.relu_prime
+                self.final_act = relu
+                self.final_act_prime = relu_prime
             case "softmax":
-                self.final_act = self.softmax
-                self.final_act_prime = self.softmax_prime
+                self.final_act = softmax
+                self.final_act_prime = softmax_prime
             case _:
-                self.final_act = self.sigmoid
-                self.final_act_prime = self.sigmoid_prime
+                self.final_act = sigmoid
+                self.final_act_prime = sigmoid_prime
 
-    def sigmoid(self, x):
-        return 1 / (1 + np.exp(-np.float64(x)))
-
-    def sigmoid_prime(self, x):
-        return self.sigmoid(x) * (1 - self.sigmoid(x))
-
-    def tanh(self, x):
-        return (2 / (1 + np.exp(-2 * np.float64(x)))) - 1
-
-    def tanh_prime(self, x):
-        return 1 - self.tanh(x) ** 2
-
-    def relu(self, x):
-        return x * (x >= 0).astype(int)
-
-    def relu_prime(self, x):
-        return (x >= 0).astype(int)
-
-    def softmax(self, x):
-        exps = np.exp(x)
-        if len(x.shape) == 1:
-            return np.array([i / np.sum(exps) for i in exps])
-        elif len(x.shape) == 2:
-            xs = []
-            expss = np.exp(x)
-            for exps in expss:
-                xs.append([i / np.sum(exps) for i in exps])
-            return np.array(xs)
-
-        raise Exception
-
-    def softmax_prime(self, x):
-
-        if len(x.shape) == 1:
-            return np.array(self.softmax_prime_helper(x))
-        elif len(x.shape) == 2:
-            arr = []
-            for i in x:
-                arr.append(self.softmax_prime_helper(i))
-            return np.array(arr)
-
-        raise Exception
-
-    def softmax_prime_helper(self, x):
-        arr = []
-        sfts = self.softmax(x)
-        for j in range(len(x)):
-            grad = []
-            for i in range(len(x)):
-                if i == j:
-                    grad.append(sfts[i] * (1 - sfts[i]))
-                else:
-                    grad.append(-sfts[i] * sfts[j])
-            arr.append(grad)
-        return arr
-
-    def resolve_cost_for_softmax(self):
+    
+    def cost_derivative_for_softmax(self):
         costd = self.__unreduced_costd
         if len(costd.shape) == 1:
             costd = costd.reshape(1, -1)
@@ -252,7 +137,7 @@ class NeuralNetwork:
         ]
         self.dropout_mask[-1] = np.ones(self.dropout_mask[-1].shape)
 
-    def LRegularization(self):
+    def regularization_loss(self):
         if self.regularization_type == "l1":
             return self.regularization_lambda * np.sum(
                 np.array([np.sum(i) for i in self.weights])
@@ -263,7 +148,7 @@ class NeuralNetwork:
             )
         return 0
 
-    def LRegularization_d(self, weights):
+    def regularization_loss_d(self, weights):
         if self.regularization_type == "l1":
             return np.sign(weights) * self.regularization_lambda
         elif self.regularization_type == "l2":
@@ -273,10 +158,15 @@ class NeuralNetwork:
     def eval(self):
         self.dropout_threshold = 0
 
+    # Called from train() when epoch gets completed
+    def epoch_complete(self): 
+        self.decay_betas()
+
     # NETWORK PASSES
 
     def forward(self, x, y):
-        self.initialize_dropout_mask()
+        if self.dropout_threshold != 0:
+            self.initialize_dropout_mask()
         self.current_act = self.intermediate_act
         self.current_act_prime = self.intermediate_act_prime
         self.acts[0] = np.mean(x, axis=0)
@@ -286,7 +176,10 @@ class NeuralNetwork:
                 self.current_act_prime = self.final_act_prime
 
             # Z = X*W + b
-            x = np.dot(x, self.weights[i] * self.dropout_mask[i]) + self.biases[i]
+            if self.dropout_threshold != 0:
+                x = np.dot(x, self.weights[i] * self.dropout_mask[i]) + self.biases[i]
+            else:
+                x = np.dot(x, self.weights[i]) + self.biases[i]
             # dA/dZ
             temp = self.current_act_prime(np.squeeze(x.copy()))
             if i + 1 == len(self.weights):
@@ -311,7 +204,7 @@ class NeuralNetwork:
         if len(temp.shape) > 1:
             temp = np.mean(temp, axis=0)
         self.costs_d = temp
-        return x, self.loss(x, y) + self.LRegularization()
+        return x, self.loss(x, y) + self.regularization_loss()
 
     # Gradients for: Hidden Layers Count 2
     # Gradient for W3
@@ -332,14 +225,14 @@ class NeuralNetwork:
         chain_grad = self.costs_d.reshape(1, -1)
         # print("dC/dz: ", chain_grad*self.act_prime[-1])
         for i in range(len(self.weights) - 1, -1, -1):
-            if i == len(self.weights) - 1 and self.final_act.__eq__(self.softmax):
-                chain_grad = self.resolve_cost_for_softmax()
+            if i == len(self.weights) - 1 and self.final_act.__eq__(softmax):
+                chain_grad = self.cost_derivative_for_softmax()
             else:
                 chain_grad *= self.act_prime[i]
             old_weights = self.weights[i].copy()
 
-            # Check if dropout is enabled
             drop_mask = 1
+            # Check if dropout is enabled
             if self.dropout_threshold != 0:
                 drop_mask = self.dropout_mask[i]
 
@@ -389,9 +282,10 @@ class NeuralNetwork:
             else:
                 print(f"Invalid optimizer: {self.optimizer} selected.\n")
                 return
+            
             self.biases[i] -= self.bias_grad[i]
             self.weights[i] -= (
-                self.weights_grad[i] + self.LR * self.LRegularization_d(old_weights)
+                self.weights_grad[i] + self.LR * self.regularization_loss_d(old_weights)
             ) * drop_mask
             chain_grad = np.dot(chain_grad, np.transpose(old_weights, (1, 0)))
 
