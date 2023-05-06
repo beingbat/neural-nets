@@ -10,3 +10,4 @@ fig/
 __pycache__
 book/
 data/
+.vscode/*

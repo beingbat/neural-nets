@@ -2,6 +2,7 @@ import numpy as np
 
 # ------------------------------------------ WEIGHTS INITIALIZATIONS --------------------------------------- #
 
+
 def weights_initialization(char):
     if char == "he":
         # Guassian Distribution with std sqrt(2/input_size)
@@ -34,6 +35,7 @@ def uniform_weights(shape):
 
 # ------------------------------------------ LOSSES --------------------------------------- #
 
+
 def loss(loss):
     if loss == "bce":
         return binary_cross_entropy_loss, binary_cross_entropy_loss_d
@@ -42,16 +44,20 @@ def loss(loss):
     else:  # mse
         return quadratic_loss, quadratic_loss_d
 
+
 # MSE
 def quadratic_loss(a, y):
     return 0.5 * (y - a) ** 2
 
+
 def quadratic_loss_d(a, y):
     return a - y
+
 
 # BCE
 def binary_cross_entropy_loss(a, y):
     return -np.sum(y * np.log2(a + 1e-8) + (1 - y) * np.log2(1 - a + 1e-8), axis=0)
+
 
 # Gives same derivative as MSE and also cancels out last layer's activation derivative as well, speeds up learning but may lead to exploding gradients
 # It is binary because it deals each output neuron seperately, which is suitable when outputs are not mutually exclusive. In MNIST problem, the right way to treat outputs is together because they are mutually exclusive hence softmax (general sigmoid) activation should be used in final layer
@@ -61,12 +67,15 @@ def binary_cross_entropy_loss_d(a, y):
     # print("a-y: ", a-y)
     return grad
 
+
 # CE Loss
 def cross_entropy_loss(a, y):
     return -np.sum(y * np.log2(a + 1e-8), axis=0)
 
+
 def cross_entropy_loss_d(a, y):
     return -(y / (a + 1e-2))
+
 
 # ----------------------------------------------------------------------------------------------------------- #
 
@@ -76,20 +85,26 @@ def cross_entropy_loss_d(a, y):
 def sigmoid(x):
     return 1 / (1 + np.exp(-np.float64(x)))
 
+
 def sigmoid_prime(x):
     return sigmoid(x) * (1 - sigmoid(x))
+
 
 def tanh(x):
     return (2 / (1 + np.exp(-2 * np.float64(x)))) - 1
 
+
 def tanh_prime(x):
     return 1 - tanh(x) ** 2
+
 
 def relu(x):
     return x * (x >= 0).astype(int)
 
+
 def relu_prime(x):
     return (x >= 0).astype(int)
+
 
 def softmax(x):
     exps = np.exp(x)
@@ -104,8 +119,8 @@ def softmax(x):
 
     raise Exception
 
-def softmax_prime(x):
 
+def softmax_prime(x):
     if len(x.shape) == 1:
         return np.array(softmax_prime_helper(x))
     elif len(x.shape) == 2:
@@ -115,6 +130,7 @@ def softmax_prime(x):
         return np.array(arr)
 
     raise Exception
+
 
 def softmax_prime_helper(x):
     arr = []
@@ -128,5 +144,6 @@ def softmax_prime_helper(x):
                 grad.append(-sfts[i] * sfts[j])
         arr.append(grad)
     return arr
+
 
 # ----------------------------------------------------------------------------------------------------------- #

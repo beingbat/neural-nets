@@ -1,5 +1,7 @@
 import numpy as np
+
 from common import *
+
 
 class NeuralNetwork:
     def __init__(
@@ -70,7 +72,6 @@ class NeuralNetwork:
     def reset_weight_gradients(self):
         self.weights_grad = [np.zeros(i.shape) for i in self.weights]
         self.bias_grad = [np.zeros(i.shape) for i in self.biases]
-  
 
     # ACTIVATIONS
 
@@ -83,7 +84,6 @@ class NeuralNetwork:
         self.current_act_prime = self.intermediate_act_prime
 
     def initialize_activations(self, intermediate_activations, final_activation):
-
         match intermediate_activations:
             case "tanh":
                 self.intermediate_act = tanh
@@ -109,7 +109,6 @@ class NeuralNetwork:
                 self.final_act = sigmoid
                 self.final_act_prime = sigmoid_prime
 
-    
     def cost_derivative_for_softmax(self):
         costd = self.__unreduced_costd
         if len(costd.shape) == 1:
@@ -159,7 +158,7 @@ class NeuralNetwork:
         self.dropout_threshold = 0
 
     # Called from train() when epoch gets completed
-    def epoch_complete(self): 
+    def epoch_complete(self):
         self.decay_betas()
 
     # NETWORK PASSES
@@ -282,7 +281,7 @@ class NeuralNetwork:
             else:
                 print(f"Invalid optimizer: {self.optimizer} selected.\n")
                 return
-            
+
             self.biases[i] -= self.bias_grad[i]
             self.weights[i] -= (
                 self.weights_grad[i] + self.LR * self.regularization_loss_d(old_weights)

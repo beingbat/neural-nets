@@ -1,6 +1,8 @@
 import numpy as np
 from tqdm import tqdm
+
 from neuralnet import NeuralNetwork
+
 
 def test_evaluation(net, data):
     matches = []
@@ -11,6 +13,7 @@ def test_evaluation(net, data):
         matches.append(np.argmax(pred) == np.argmax(y))
     matches = np.array(matches).astype(int)
     return np.sum(matches) / len(data)
+
 
 def preprocess_data(data):
     data_x = []
@@ -26,7 +29,8 @@ def preprocess_data(data):
         data_y = np.expand_dims(data_y, axis=0)
     return data_x, data_y
 
-def train(net : NeuralNetwork, train_data, epochs=1, batch_size=1):
+
+def train(net: NeuralNetwork, train_data, epochs=1, batch_size=1):
     epoch_iterable = tqdm(range(epochs))
     for i in epoch_iterable:
         epoch_iterable.set_description("Epoch: " + str(i))
@@ -37,9 +41,11 @@ def train(net : NeuralNetwork, train_data, epochs=1, batch_size=1):
             net.backward()
             epoch_iterable.set_postfix(
                 {
-                    "Batch: ": f'{j:06d}',
-                    "Loss: ": f'{np.mean(loss):06f}',
-                    "P/A: ": str(np.argmax(pred, axis=-1)) + "/" + str(np.argmax(y, axis=-1)),
+                    "Batch: ": f"{j:06d}",
+                    "Loss: ": f"{np.mean(loss):06f}",
+                    "P/A: ": str(np.argmax(pred, axis=-1))
+                    + "/"
+                    + str(np.argmax(y, axis=-1)),
                 }
             )
         net.epoch_complete()
