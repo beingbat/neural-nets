@@ -28,6 +28,13 @@ def xavier_weights(shape):
 def uniform_weights(shape):
     upper = 1
     lower = -upper
+
+    if len(shape) == 3:
+        return lower + np.random.rand(shape[0], shape[1], shape[2]) * (upper - lower)
+    elif len(shape) == 4:
+        return lower + np.random.rand(shape[0], shape[1], shape[2], shape[3]) * (
+            upper - lower
+        )
     return lower + np.random.rand(shape[0], shape[1]) * (upper - lower)
 
 
