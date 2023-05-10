@@ -27,6 +27,8 @@
 
 source: https://deeplearning.cs.cmu.edu/F21/document/recitation/Recitation5/CNN_Backprop_Recitation_5_F21.pdf
 
+**Note: A confusion may arise from the fact that if there are more than one filters, wouldn't there derivative would be same and wouldn't they learn the same thing? No because each channel of output A is created by a different kernel.**
+
 **Implementation Details**
     
 - Gradients don't accumulate, like they don't in the implementation of Linear (Nueral Network) layer
