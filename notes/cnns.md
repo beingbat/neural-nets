@@ -35,4 +35,3 @@ source: https://deeplearning.cs.cmu.edu/F21/document/recitation/Recitation5/CNN_
 - Kernel Size, Stride, Pad all are assumed to be same in both dimensions and are represented by integer
 - I am using FCN (Fully Convolution Network), with only one output. However using hot encoding abd having 10 outputs with softmax at the end will be a better approach. 
 - Layers are represented as sequence of 3 sub layers (conv, activation and pool). Each sub layer has a class to store relevant parameters for that layer like sizes and type. 
-- 
