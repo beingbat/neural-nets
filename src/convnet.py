@@ -26,7 +26,9 @@ class PoolLayer:
 
 
 class ConvNetwork:
-    def __init__(self, net_config, lr=0.01, loss_fn="quadratic", weight_init="uniform"):
+    def __init__(
+        self, net_config, lr=0.00001, loss_fn="quadratic", weight_init="uniform"
+    ):
         # net_config: its a multiple of 3 (args for conv layer, args for preceding activation, args for preceding pooling layer)
         # conv args: out channels [all in channels become input of each out channel], kernel size, stride, pad
         # activation args: type
@@ -196,9 +198,9 @@ class ConvNetwork:
                 pool_count += 1
                 X = outX
 
-            loss = quadratic_loss(np.squeeze(X), y)
-            #
-            self.chain_grad = quadratic_loss_d(X, [[[y]]])
+        loss = quadratic_loss(np.squeeze(X), y)
+        #
+        self.chain_grad = quadratic_loss_d(X, [[[y]]])
 
         return X, loss
 
@@ -236,7 +238,7 @@ class ConvNetwork:
                         in_ch = np.expand_dims(input_channel, axis=0)
                         K_derivative[idx, idy] = self.convolution(
                             in_ch, out_ch, stride, pad
-                        )[0]
+                        )
                 # (output_channels = number of kernels in current layer)
                 previous_kernels = self.kernels[conv_index].copy()
                 # find dL/dKs and apply it to Ks
@@ -279,19 +281,30 @@ class ConvNetwork:
 
 # net_config=[conv, act, pool, conv, act, pool, ...]
 ### conv: in_channel, out_channel, kernel_size, stride, pad
-conv1 = ConvLayer(in_channels=1, out_channels=8, kernel_size=7, stride=1, pad=0)
+conv1 = ConvLayer(in_channels=1, out_channels=8, kernel_size=5, stride=1, pad=0)
 ### act: type
 act1 = ActLayer()
 ### pool: type, size
-pool1 = PoolLayer(size=2)
+pool1 = PoolLayer(size=3)
 
-conv2 = ConvLayer(in_channels=8, out_channels=1, kernel_size=5, stride=1, pad=0)
+conv2 = ConvLayer(in_channels=8, out_channels=1, kernel_size=3, stride=1, pad=0)
 act2 = ActLayer()
-pool2 = PoolLayer(size=7)
+pool2 = PoolLayer(size=6)
+
 
 net = ConvNetwork(net_config=[conv1, act1, pool1, conv2, act2, pool2])
+
 for i in range(500):
-    input_img = np.ones((1, 28, 28), dtype="float")
-    pred, closs = net.forward(input_img, 1)
-    print("pred: ", np.squeeze(pred), "loss: ", closs)
-    net.backward()
+    input_img1 = np.ones((1, 28, 28), dtype="float")
+    input_img2 = np.ones((1, 28, 28), dtype="float") * 2
+    for id, img in enumerate([input_img1, input_img2]):
+        pred, closs = net.forward(img, id)
+        print(
+            "pred: ",
+            np.round(np.squeeze(pred), 2),
+            "loss: ",
+            np.round(closs, 2),
+            "gt: ",
+            id,
+        )
+        net.backward()

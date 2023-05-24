@@ -30,12 +30,12 @@ def uniform_weights(shape):
     lower = -upper
 
     if len(shape) == 3:
-        return lower + np.random.rand(shape[0], shape[1], shape[2]) * (upper - lower)
+        return np.random.rand(shape[0], shape[1], shape[2]) * (upper - lower) / 2
     elif len(shape) == 4:
-        return lower + np.random.rand(shape[0], shape[1], shape[2], shape[3]) * (
-            upper - lower
+        return (
+            np.random.rand(shape[0], shape[1], shape[2], shape[3]) * (upper - lower) / 2
         )
-    return lower + np.random.rand(shape[0], shape[1]) * (upper - lower)
+    return np.random.rand(shape[0], shape[1]) * (upper - lower) / 2
 
 
 # ----------------------------------------------------------------------------------------------------------- #
